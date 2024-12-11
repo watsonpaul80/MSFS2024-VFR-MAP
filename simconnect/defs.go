@@ -63,6 +63,10 @@ const GROUP_PRIORITY_HIGHEST_MASKABLE DWORD = 10000000 // highest priority that 
 const GROUP_PRIORITY_STANDARD DWORD = 1900000000       // standard priority
 const GROUP_PRIORITY_DEFAULT DWORD = 2000000000        // default priority
 const GROUP_PRIORITY_LOWEST DWORD = 4000000000         // priorities lower than this will be ignored
+const SIMCONNECT_EVENT_FLAG_DEFAULT DWORD = 0x00000000
+const SIMCONNECT_EVENT_FLAG_FAST_REPEAT_TIMER DWORD = 0x00000001   // set event repeat timer to simulate fast repeat
+const SIMCONNECT_EVENT_FLAG_SLOW_REPEAT_TIMER DWORD = 0x00000002   // set event repeat timer to simulate slow repeat
+const SIMCONNECT_EVENT_FLAG_GROUPID_IS_PRIORITY DWORD = 0x00000010 // interpret GroupID parameter as priority value
 
 func derefDataType(fieldType string) (DWORD, error) {
 	var dataType DWORD

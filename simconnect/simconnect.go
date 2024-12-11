@@ -6,14 +6,19 @@ package simconnect
 // MSFS-SDK/SimConnect\ SDK/lib/SimConnect.dll
 
 import (
+	_ "embed"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"reflect"
 	"syscall"
 	"unsafe"
 )
+
+//go:embed SimConnect.dll
+var simconnectDLL []byte
 
 var proc_SimConnect_Open *syscall.LazyProc
 var proc_SimConnect_Close *syscall.LazyProc
@@ -32,11 +37,64 @@ var proc_SimConnect_MenuDeleteItem *syscall.LazyProc
 var proc_SimConnect_AddClientEventToNotificationGroup *syscall.LazyProc
 var proc_SimConnect_SetNotificationGroupPriority *syscall.LazyProc
 var proc_SimConnect_Text *syscall.LazyProc
+var proc_SimConnect_TransmitClientEvent *syscall.LazyProc
 
 type SimConnect struct {
 	handle      unsafe.Pointer
 	DefineMap   map[string]DWORD
 	LastEventID DWORD
+}
+
+var sysPaths = []string{
+	"c:\\MSFS SDK\\SimConnect SDK\\lib\\SimConnect.dll",
+	"c:\\MSFS 2024 SDK\\SimConnect SDK\\lib\\SimConnect.dll",
+}
+
+func findSysPath() (string, error) {
+	for _, sysPath := range sysPaths {
+		st, err := os.Stat(sysPath)
+		if err == nil && !st.IsDir() {
+			return sysPath, nil
+		}
+	}
+	return "", fmt.Errorf("SimConnect.dll not found")
+}
+
+func getFilePath() (string, error) {
+	// sysPath := "\\MSFS SDK\\SimConnect SDK\\lib\\SimConnect.dll"
+	// st, err := os.Stat(sysPath)
+	// if err == nil && !st.IsDir() {
+	// 	return sysPath, nil
+	// }
+	sysPath, err := findSysPath()
+	if err == nil {
+		return sysPath, nil
+	}
+	fmt.Println("SimConnect.dll not found in default paths; using bundled")
+	exePath, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	dllPath := filepath.Join(filepath.Dir(exePath), "SimConnect.dll")
+	st, err := os.Stat(dllPath)
+	if err == nil && !st.IsDir() {
+		return dllPath, nil
+	}
+	path, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("cannot get cwd: %w", err)
+	}
+	dllPath = filepath.Join(path, "SimConnect.dll")
+	st, err = os.Stat(dllPath)
+	if err == nil && !st.IsDir() {
+		return dllPath, nil
+	}
+	// b := bytes.NewReader(fsuipcDLL)
+	err = ioutil.WriteFile(dllPath, simconnectDLL, 0644)
+	if err != nil {
+		return "", fmt.Errorf("cannot write file: %w", err)
+	}
+	return dllPath, nil
 }
 
 func New(name string) (*SimConnect, error) {
@@ -46,19 +104,11 @@ func New(name string) (*SimConnect, error) {
 	}
 
 	if proc_SimConnect_Open == nil {
-		exePath, err := os.Executable()
+		dllPath, err := getFilePath()
 		if err != nil {
 			return nil, err
 		}
-
-		dllPath := filepath.Join(filepath.Dir(exePath), "SimConnect.dll")
-		if _, err = os.Stat(dllPath); os.IsNotExist(err) {
-			buf := MustAsset("MSFS-SDK/SimConnect SDK/lib/SimConnect.dll")
-
-			if err := ioutil.WriteFile(dllPath, buf, 0644); err != nil {
-				return nil, err
-			}
-		}
+		log.Println("Using SimConnect DLL path:", dllPath)
 
 		mod := syscall.NewLazyDLL(dllPath)
 		if err = mod.Load(); err != nil {
@@ -82,6 +132,7 @@ func New(name string) (*SimConnect, error) {
 		proc_SimConnect_AddClientEventToNotificationGroup = mod.NewProc("SimConnect_AddClientEventToNotificationGroup")
 		proc_SimConnect_SetNotificationGroupPriority = mod.NewProc("SimConnect_SetNotificationGroupPriority")
 		proc_SimConnect_Text = mod.NewProc("SimConnect_Text")
+		proc_SimConnect_TransmitClientEvent = mod.NewProc("SimConnect_TransmitClientEvent")
 	}
 
 	// SimConnect_Open(
@@ -116,7 +167,11 @@ func (s *SimConnect) GetEventID() DWORD {
 }
 
 func (s *SimConnect) GetDefineID(a interface{}) DWORD {
-	structName := reflect.TypeOf(a).Elem().Name()
+	t := reflect.TypeOf(a)
+	if t.Kind() == reflect.Ptr || t.Kind() == reflect.Interface {
+		t = t.Elem()
+	}
+	structName := t.Name()
 
 	id, ok := s.DefineMap[structName]
 	if !ok {
@@ -130,8 +185,11 @@ func (s *SimConnect) GetDefineID(a interface{}) DWORD {
 
 func (s *SimConnect) RegisterDataDefinition(a interface{}) error {
 	defineID := s.GetDefineID(a)
+	v := reflect.ValueOf(a)
+	if v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
+		v = v.Elem()
+	}
 
-	v := reflect.ValueOf(a).Elem()
 	for j := 1; j < v.NumField(); j++ {
 		fieldName := v.Type().Field(j).Name
 		nameTag, _ := v.Type().Field(j).Tag.Lookup("name")
@@ -415,6 +473,23 @@ func (s *SimConnect) MapClientEventToSimEvent(eventID DWORD, eventName string) e
 			"SimConnect_MapClientEventToSimEvent for eventID %d error: %d %s",
 			eventID, r1, err,
 		)
+	}
+
+	return nil
+}
+
+func (s *SimConnect) TransmitClientEvent(objectID, eventID, dwData, groupID, flags DWORD) error {
+
+	r1, _, err := proc_SimConnect_TransmitClientEvent.Call(
+		uintptr(s.handle),
+		uintptr(objectID),
+		uintptr(eventID),
+		uintptr(dwData),
+		uintptr(groupID),
+		uintptr(flags),
+	)
+	if int32(r1) < 0 {
+		return fmt.Errorf("SimConnect_TransmitClientEvent for eventID %d error: %d %s", eventID, r1, err)
 	}
 
 	return nil

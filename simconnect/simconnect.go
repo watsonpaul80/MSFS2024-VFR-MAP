@@ -53,7 +53,7 @@ func New(name string) (*SimConnect, error) {
 
 		dllPath := filepath.Join(filepath.Dir(exePath), "SimConnect.dll")
 		if _, err = os.Stat(dllPath); os.IsNotExist(err) {
-			buf := MustAsset("MSFS-SDK/SimConnect SDK/lib/SimConnect.dll")
+			buf := MustAsset("SimConnect.dll")
 
 			if err := ioutil.WriteFile(dllPath, buf, 0644); err != nil {
 				return nil, err

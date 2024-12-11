@@ -16,9 +16,9 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/lian/msfs2020-go/simconnect"
-	"github.com/lian/msfs2020-go/vfrmap/html/leafletjs"
-	"github.com/lian/msfs2020-go/vfrmap/websockets"
+    "github.com/watsonpaul80/MSFS2024-VFR-MAP/simconnect"
+    "github.com/watsonpaul80/MSFS2024-VFR-MAP/vfrmap/html/leafletjs"
+    "github.com/watsonpaul80/MSFS2024-VFR-MAP/vfrmap/websockets"
 )
 
 type Report struct {

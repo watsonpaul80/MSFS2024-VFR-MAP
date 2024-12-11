@@ -1,2 +1,4 @@
 github.com/gorilla/websocket v1.4.2 h1:+/TMaTYc4QFitKJxsQ7Yye35DkWvkdLcvGKqM+x0Ufc=
 github.com/gorilla/websocket v1.4.2/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
+github.com/lian/msfs2020-go v0.0.7 h1:eEJiAlHP2Jh/MxIH9WogBtSSdjq9i6Spy09uglX1mDQ=
+github.com/lian/msfs2020-go v0.0.7/go.mod h1:k0OuEW7HDfa1cO+2y6ypiKOLGaEPM1JztcTf1a2MrKk=
